@@ -1,0 +1,46 @@
+diff --git a/libavformat/libsrt.c b/libavformat/libsrt.c
+index cd8f5b1e7d..bd9916b8c0 100644
+--- a/libavformat/libsrt.c
++++ b/libavformat/libsrt.c
+@@ -77,6 +77,7 @@ typedef struct SRTContext {
+     int tlpktdrop;
+     int nakreport;
+     int64_t connect_timeout;
++	int64_t peeridle_timeout;
+     int payload_size;
+     int64_t rcvlatency;
+     int64_t peerlatency;
+@@ -127,6 +128,7 @@ static const AVOption libsrt_options[] = {
+     { "tlpktdrop",      "Enable too-late pkt drop",                                             OFFSET(tlpktdrop),        AV_OPT_TYPE_BOOL,     { .i64 = -1 }, -1, 1,         .flags = D|E },
+     { "nakreport",      "Enable receiver to send periodic NAK reports",                         OFFSET(nakreport),        AV_OPT_TYPE_BOOL,     { .i64 = -1 }, -1, 1,         .flags = D|E },
+     { "connect_timeout", "Connect timeout(in milliseconds). Caller default: 3000, rendezvous (x 10)",                            OFFSET(connect_timeout),  AV_OPT_TYPE_INT64, { .i64 = -1 }, -1, INT64_MAX, .flags = D|E },
++	{ "peeridle_timeout", "Connect timeout(in milliseconds). default: 5000",                            OFFSET(peeridle_timeout),  AV_OPT_TYPE_INT64, { .i64 = -1 }, -1, INT64_MAX, .flags = D|E },
+     { "mode",           "Connection mode (caller, listener, rendezvous)",                       OFFSET(mode),             AV_OPT_TYPE_INT,      { .i64 = SRT_MODE_CALLER }, SRT_MODE_CALLER, SRT_MODE_RENDEZVOUS, .flags = D|E, "mode" },
+     { "caller",         NULL, 0, AV_OPT_TYPE_CONST,  { .i64 = SRT_MODE_CALLER },     INT_MIN, INT_MAX, .flags = D|E, "mode" },
+     { "listener",       NULL, 0, AV_OPT_TYPE_CONST,  { .i64 = SRT_MODE_LISTENER },   INT_MIN, INT_MAX, .flags = D|E, "mode" },
+@@ -324,6 +326,7 @@ static int libsrt_set_options_pre(URLContext *h, int fd)
+     int snddropdelay = s->snddropdelay > 0 ? s->snddropdelay / 1000 : s->snddropdelay;
+ #endif
+     int connect_timeout = s->connect_timeout;
++	int peeridle_timeout = s->peeridle_timeout;
+ 
+     if ((s->mode == SRT_MODE_RENDEZVOUS && libsrt_setsockopt(h, fd, SRTO_RENDEZVOUS, "SRTO_RENDEZVOUS", &yes, sizeof(yes)) < 0) ||
+         (s->transtype != SRTT_INVALID && libsrt_setsockopt(h, fd, SRTO_TRANSTYPE, "SRTO_TRANSTYPE", &s->transtype, sizeof(s->transtype)) < 0) ||
+@@ -351,6 +354,7 @@ static int libsrt_set_options_pre(URLContext *h, int fd)
+         (s->tlpktdrop >= 0 && libsrt_setsockopt(h, fd, SRTO_TLPKTDROP, "SRTO_TLPKTDROP", &s->tlpktdrop, sizeof(s->tlpktdrop)) < 0) ||
+         (s->nakreport >= 0 && libsrt_setsockopt(h, fd, SRTO_NAKREPORT, "SRTO_NAKREPORT", &s->nakreport, sizeof(s->nakreport)) < 0) ||
+         (connect_timeout >= 0 && libsrt_setsockopt(h, fd, SRTO_CONNTIMEO, "SRTO_CONNTIMEO", &connect_timeout, sizeof(connect_timeout)) <0 ) ||
++		(peeridle_timeout >= 0 && libsrt_setsockopt(h, fd, SRTO_PEERIDLETIMEO, "SRTO_PEERIDLETIMEO", &peeridle_timeout, sizeof(peeridle_timeout)) <0 ) ||
+         (s->sndbuf >= 0 && libsrt_setsockopt(h, fd, SRTO_SNDBUF, "SRTO_SNDBUF", &s->sndbuf, sizeof(s->sndbuf)) < 0) ||
+         (s->rcvbuf >= 0 && libsrt_setsockopt(h, fd, SRTO_RCVBUF, "SRTO_RCVBUF", &s->rcvbuf, sizeof(s->rcvbuf)) < 0) ||
+         (s->lossmaxttl >= 0 && libsrt_setsockopt(h, fd, SRTO_LOSSMAXTTL, "SRTO_LOSSMAXTTL", &s->lossmaxttl, sizeof(s->lossmaxttl)) < 0) ||
+@@ -601,6 +605,9 @@ static int libsrt_open(URLContext *h, const char *uri, int flags)
+         }
+         if (av_find_info_tag(buf, sizeof(buf), "connect_timeout", p)) {
+             s->connect_timeout = strtoll(buf, NULL, 10);
++        }
++		if (av_find_info_tag(buf, sizeof(buf), "peeridle_timeout", p)) {
++            s->peeridle_timeout = strtoll(buf, NULL, 10);
+         }
+         if (av_find_info_tag(buf, sizeof(buf), "payload_size", p) ||
+             av_find_info_tag(buf, sizeof(buf), "pkt_size", p)) {
