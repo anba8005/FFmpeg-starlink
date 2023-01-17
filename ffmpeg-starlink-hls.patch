@@ -1,0 +1,59 @@
+diff --git a/libavformat/hls.c b/libavformat/hls.c
+index e622425e80..3733d56b86 100644
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -213,6 +213,7 @@ typedef struct HLSContext {
+     int64_t cur_seq_no;
+     int m3u8_hold_counters;
+     int live_start_index;
++	int force_live_start_index;
+     int prefer_x_start;
+     int first_packet;
+     int64_t first_timestamp;
+@@ -1741,8 +1742,13 @@ static int64_t select_cur_seq_no(HLSContext *c, struct playlist *pls)
+         /* If this is a live stream, start live_start_index segments from the
+          * start or end */
+         if (c->live_start_index < 0)
+-            seq_no = pls->start_seq_no + FFMAX(pls->n_segments +
+-                                            c->live_start_index, 0);
++			if (c->force_live_start_index) {
++            	seq_no = pls->start_seq_no + pls->n_segments + c->live_start_index;
++			}
++			else {
++            	seq_no = pls->start_seq_no + FFMAX(pls->n_segments +
++                	                            c->live_start_index, 0);
++			}
+         else
+             seq_no = pls->start_seq_no + FFMIN(c->live_start_index,
+                                             pls->n_segments - 1);
+@@ -1922,7 +1928,7 @@ static int hls_read_header(AVFormatContext *s)
+ {
+     HLSContext *c = s->priv_data;
+     int ret = 0, i;
+-    int64_t highest_cur_seq_no = 0;
++    int64_t cur_seq_no, highest_cur_seq_no = 0;
+ 
+     c->ctx                = s;
+     c->interrupt_callback = &s->interrupt_callback;
+@@ -2008,7 +2014,11 @@ static int hls_read_header(AVFormatContext *s)
+         if (pls->n_segments == 0)
+             continue;
+ 
+-        pls->cur_seq_no = select_cur_seq_no(c, pls);
++		cur_seq_no = select_cur_seq_no(c, pls);
++		if (pls->start_seq_no > cur_seq_no)
++			return AVERROR(EOF);
++			
++        pls->cur_seq_no = cur_seq_no;
+         highest_cur_seq_no = FFMAX(highest_cur_seq_no, pls->cur_seq_no);
+     }
+ 
+@@ -2531,6 +2541,8 @@ static int hls_probe(const AVProbeData *p)
+ static const AVOption hls_options[] = {
+     {"live_start_index", "segment index to start live streams at (negative values are from the end)",
+         OFFSET(live_start_index), AV_OPT_TYPE_INT, {.i64 = -3}, INT_MIN, INT_MAX, FLAGS},
++    {"force_live_start_index", "Force segment index to start live streams at (negative values are from the end)",
++        OFFSET(force_live_start_index), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, FLAGS},
+     {"prefer_x_start", "prefer to use #EXT-X-START if it's in playlist instead of live_start_index",
+         OFFSET(prefer_x_start), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, FLAGS},
+     {"allowed_extensions", "List of file extensions that hls is allowed to access",
