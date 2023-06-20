@@ -1,5 +1,5 @@
 diff --git a/libavformat/hls.c b/libavformat/hls.c
-index e622425e80..3733d56b86 100644
+index 8a96a37ff9..5f081737ad 100644
 --- a/libavformat/hls.c
 +++ b/libavformat/hls.c
 @@ -213,6 +213,7 @@ typedef struct HLSContext {
@@ -10,7 +10,17 @@ index e622425e80..3733d56b86 100644
      int prefer_x_start;
      int first_packet;
      int64_t first_timestamp;
-@@ -1741,8 +1742,13 @@ static int64_t select_cur_seq_no(HLSContext *c, struct playlist *pls)
+@@ -1518,7 +1519,8 @@ reload:
+             av_log(v->parent, AV_LOG_WARNING,
+                    "skipping %"PRId64" segments ahead, expired from playlists\n",
+                    v->start_seq_no - v->cur_seq_no);
+-            v->cur_seq_no = v->start_seq_no;
++            // v->cur_seq_no = v->start_seq_no;
++            return AVERROR_EXIT;
+         }
+         if (v->cur_seq_no > v->last_seq_no) {
+             v->last_seq_no = v->cur_seq_no;
+@@ -1752,8 +1754,13 @@ static int64_t select_cur_seq_no(HLSContext *c, struct playlist *pls)
          /* If this is a live stream, start live_start_index segments from the
           * start or end */
          if (c->live_start_index < 0)
@@ -26,7 +36,7 @@ index e622425e80..3733d56b86 100644
          else
              seq_no = pls->start_seq_no + FFMIN(c->live_start_index,
                                              pls->n_segments - 1);
-@@ -1922,7 +1928,7 @@ static int hls_read_header(AVFormatContext *s)
+@@ -1933,7 +1940,7 @@ static int hls_read_header(AVFormatContext *s)
  {
      HLSContext *c = s->priv_data;
      int ret = 0, i;
@@ -35,7 +45,7 @@ index e622425e80..3733d56b86 100644
  
      c->ctx                = s;
      c->interrupt_callback = &s->interrupt_callback;
-@@ -2008,7 +2014,11 @@ static int hls_read_header(AVFormatContext *s)
+@@ -2019,7 +2026,11 @@ static int hls_read_header(AVFormatContext *s)
          if (pls->n_segments == 0)
              continue;
  
@@ -48,7 +58,7 @@ index e622425e80..3733d56b86 100644
          highest_cur_seq_no = FFMAX(highest_cur_seq_no, pls->cur_seq_no);
      }
  
-@@ -2531,6 +2541,8 @@ static int hls_probe(const AVProbeData *p)
+@@ -2542,6 +2553,8 @@ static int hls_probe(const AVProbeData *p)
  static const AVOption hls_options[] = {
      {"live_start_index", "segment index to start live streams at (negative values are from the end)",
          OFFSET(live_start_index), AV_OPT_TYPE_INT, {.i64 = -3}, INT_MIN, INT_MAX, FLAGS},
